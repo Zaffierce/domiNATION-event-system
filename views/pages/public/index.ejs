@@ -1,0 +1,36 @@
+<%- include('../../partials/head.ejs'); %>
+  <title>User: <%= user.username %> - DomiNATION Ark: Survival Evolved Community</title>
+<link rel="stylesheet" type="text/css" href="styles/forms.css">
+<link rel="stylesheet" type="text/css" href="styles/test.css">
+</head>
+<body>
+  <%- include('../../partials/nav.ejs'); %>
+    <div class="container">
+      Upcoming events for DomiNATION... All events are shown in GMT-04 (EST) timezone.
+      <div class="row">
+      <% for (let i = 0; i < events.length; i++) { %>
+          <div class="col-md-4">
+            <div><img src="https://drive.google.com/uc?export=view&id=1EL0ZkVQnhG8TSSn0NiqqTK4gvsEHxMCn" class="d-block w-75"></div>
+            <!-- <p>Date of Event:  <%=events[0].start_date.split(" ")[0]%></p>
+            <p>Time of Event:  <%=events[0].start_date.split(" ")[1]%></p>
+            <p>Event Timezone:  GMT<%=events[0].start_date.split(" ")[2]%></p> -->
+            <div><%=events[i].start_date%>, <%=events[i].time%></div>
+            <!-- DAY, MMM DD, TIME-->
+          </div>
+          <% } %>
+        </div>
+
+        
+  
+        
+      
+      <!-- fgdsgfdsdgfdsgs -->
+      <!-- <iframe src="https://drive.google.com/file/d/1EL0ZkVQnhG8TSSn0NiqqTK4gvsEHxMCn/preview" width="640" height="480"></iframe> -->
+      <!-- <img src="https://lh4.googleusercontent.com/sD7wDGll-AFr-mvicqdPoIaAOhW0cpz8cPDvqm5cf414YaRWWXsdqC4MkY6j2vmTbzfek5yhZX7vW0eJ70PB=w1038-h959-rw"> -->
+      <!-- <img src="https://drive.google.com/uc?export=view&id=1EL0ZkVQnhG8TSSn0NiqqTK4gvsEHxMCn"> -->
+      <!--Stuff goes here-->
+    </div>
+    
+  </div> <!--Close of content-->
+</body>
+</html>

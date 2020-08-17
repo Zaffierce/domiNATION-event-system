@@ -1,0 +1,10 @@
+<% for (let i = 0; i < events.length; i++) { %>
+  <tr class="ng-scope tickets">
+    <td class="ng-scope"><%=events[i].id%></td>
+    <td class="ng-scope">#<%=events[i].created_date%></td>
+    <td class="ng-scope"><%=events[i].event_start_date%></td>
+    <td class="ng-scope"><%=events[i].event_timezone%></td>
+    <td class="ng-scope"><%=events[i].description%></td>
+    <td class="ng-scope"><%=events[i].showEvent%></td>
+  </tr>
+<% } %>
