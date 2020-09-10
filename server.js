@@ -136,8 +136,8 @@ async function fetchCalendar() {
     }, (err, res) => {
       if (err) return console.log('The API returned an error: ' + err);
       const events = res.data.items;
-      console.log(events);
-      // console.log(events[0]);
+      // console.log(events);
+      console.log(events[0]);
       if (events.length) {
         const curr10Events = events.map((event) => {
           return new Event(event, true)
@@ -145,8 +145,11 @@ async function fetchCalendar() {
         curr10Events.forEach(e => {
           //console.log(curr10Events);
           client.query(`SELECT * FROM events where id = '${e.id}'`).then(sqlRes => {
+            //TODO: BIG ISSUE... Timezone is based off of the server timezone.  Thanks Node.
+            //Need to offset Timezone to EST
             if (sqlRes.rowCount < 1) {
               console.log("Inserting new data into database");
+              console.log("Event Start Date", e.event_start_date);
               // let date = e.event_start_date.slice(0, 10).split("-");
               let date_am_pm = formatAMPM(new Date(e.event_start_date));
               let formattedDate = new Date(e.event_start_date).toDateString();
