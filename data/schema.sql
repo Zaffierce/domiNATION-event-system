@@ -12,7 +12,9 @@ CREATE TABLE events (
 
 CREATE TABLE signed_up_events (
   event_id VARCHAR(255),
-  discord_id VARCHAR(255)
+  discord_id VARCHAR(255),
+  character_name VARCHAR(255),
+  attended BOOLEAN
 );
 
 CREATE TABLE events_images (

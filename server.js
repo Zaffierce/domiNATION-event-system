@@ -46,6 +46,15 @@ app.get('/', catchAsync(async(req, res) => {
       } else {
         // const eventImages = [];
         const eventData = await fetchCalendar();
+        const signedUpEvents = await fetchSignedUpEvents(validateUser.id);
+
+        res.render('./pages/public/index', {
+          user: validateUser,
+          events: eventData.rows,
+          signed_up_events: signedUpEvents.rows
+          // event_image : eventImages.rows
+        });
+        
         //TODO: Render each image pulled from the database and associate it with the appropriate event
         // const eventImages = await eventData.rows.forEach(e => {
         //   return client.query(`SELECT * FROM events_images WHERE event_id = '${e.id}'`)
@@ -62,21 +71,41 @@ app.get('/', catchAsync(async(req, res) => {
         // })
         // const eventImages = await client.query('SELECT * FROM events_images')
         // console.log(eventData.rows)
-        res.render('./pages/public/index', {
-          user: validateUser,
-          events: eventData.rows
-          // event_image : eventImages.rows
-        });
+        
       }
     }
 }));
 
-app.get('/test', catchAsync(async(req, res) => {
-  const eventData = await fetchCalendar();
-  // console.log(banana.rows);
+app.post('/signup', (req, res) => {
+  //TODO: Grab user's DISCORD ID
+  let sqlArr = [res.req.body.eventID, res.req.body.userID, res.req.body.user, false];
+  let sql = 'INSERT INTO signed_up_events(event_id, discord_id, character_name, attended) VALUES ($1, $2, $3, $4);'
+  try {
+    client.query(sql, sqlArr).then(() => {
+    res.end('{"success" : "Updated successfully", "status" : 200}');
+  });
+  } catch (e) {
+    console.log(e);
+    res.end('{"error" : "An error has occured.", "status" : 500}');
+  }
+});
 
+app.post('/unsignup', (req, res) => {
+  let sqlArr = [res.req.body.userID, res.req.body.eventID];
+  let sql = 'DELETE FROM signed_up_events WHERE (discord_id = $1 AND event_id = $2);'
+  try {
+    client.query(sql, sqlArr).then(() => {
+      res.json('{"success" : "Updated successfully", "status" : 200}');
+    });
+  } catch (e) {
+    console.log(e);
+    res.end('{"error" : "An error has occured.", "status" : 500}');
+  }
+});
 
-}));
+app.get('/fetchevents', (req, res) => {
+  //TODO: Send queried events to front-end
+});
 
 async function fetchCalendar() {
     
@@ -136,32 +165,26 @@ async function fetchCalendar() {
     }, (err, res) => {
       if (err) return console.log('The API returned an error: ' + err);
       const events = res.data.items;
-      // console.log(events);
-      console.log(events[0]);
-      if (events.length) {
+      // console.log(res.data);
+      // console.log("Event data", events.length);
+      if (events.length != 0) {
+        // console.log("Events length is not 0")
         const curr10Events = events.map((event) => {
           return new Event(event, true)
         });
         curr10Events.forEach(e => {
           //console.log(curr10Events);
           client.query(`SELECT * FROM events where id = '${e.id}'`).then(sqlRes => {
-            //TODO: BIG ISSUE... Timezone is based off of the server timezone.  Thanks Node.
-            //Need to offset Timezone to EST
+            //TODO: Timezone of events is based off of the timezone the server is on.
+            //Want to create Timezone offsetter for the future!
             if (sqlRes.rowCount < 1) {
               console.log("Inserting new data into database");
               console.log("Event Start Date", e.event_start_date);
-              // let date = e.event_start_date.slice(0, 10).split("-");
               let date_am_pm = formatAMPM(new Date(e.event_start_date));
               let formattedDate = new Date(e.event_start_date).toDateString();
-              // let formattedDate = new Date(e.event_start_date).toUTCString();
-              // let start_time = e.event_start_date.slice(11,16);
               let timezone = e.event_start_date.slice(19, 25);
               let start_date_ms = Date.parse(new Date(e.event_start_date));
-              // let modifiedDate = `${date[1]}/${date[2]}/${date[0]} ${start_time} ${timezone}`;
-              // let date_ms = new Date(e.event_start_date).toDateString();
-              // let date_ms = e.event_start_date;
               let sqlArr = [e.id, e.created_date, start_date_ms, formattedDate, date_am_pm, timezone, e.summary, e.descrption];
-              // console.log(new Date(date_ms).toDateString())
               let sql = 'INSERT INTO events (id, created_date, start_date_ms, start_date, time, timezone, summary, description, showevent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE);';
               client.query(sql, sqlArr);
 
@@ -198,86 +221,84 @@ async function fetchCalendar() {
   }
 
   async function fetchEvents() {
-    // fetchCalendar();
     const thirtyDaysAgoInMS = Date.now() - 2592000000; //1594099120744
-    return client.query(`SELECT * FROM events WHERE created_date > ${thirtyDaysAgoInMS} order by start_date_ms asc;`);
+    const now = Date.now();
+    return client.query(`SELECT * FROM events WHERE (created_date > ${thirtyDaysAgoInMS} AND start_date_ms > ${now}) order by start_date_ms asc LIMIT 10;`);
   }
 
   return await fetchEvents();
 }
 
+async function fetchSignedUpEvents(userID) {
+  return client.query(`SELECT * FROM signed_up_events where discord_id = '${userID}';`);
+}
+
 app.get('*', (req, res) => {res.status(404).render('pages/error')});
 
-
-
-
-
-
-
 async function authenticateUser(token) {
-    let result = {
-      isStudent: false,
-      isAdmin: false,
-      isPatreon: false,
-      username: null,
-      discriminator: null,
-      id: null,
-      picture: null,
-      isFound: false
+  let result = {
+    isStudent: false,
+    isAdmin: false,
+    isPatreon: false,
+    username: null,
+    discriminator: null,
+    id: null,
+    picture: null,
+    isFound: false
+  }
+  let userSession = await superagent.get('https://auth.domination-gaming.com/user').set('X-Auth-Token', token);
+  let user = userSession.body.discordGuildMember;
+  if (user === null) {
+    return result = {
+    isStudent: false,
+    isAdmin: false,
+    isPatreon: false,
+    username: null,
+    discriminator: null,
+    id: null,
+    picture: null,
+    isFound: false
     }
-    let userSession = await superagent.get('https://auth.domination-gaming.com/user').set('X-Auth-Token', token);
-    let user = userSession.body.discordGuildMember;
-    if (user === null) {
-      return result = {
-      isStudent: false,
-      isAdmin: false,
-      isPatreon: false,
-      username: null,
-      discriminator: null,
-      id: null,
-      picture: null,
-      isFound: false
-      }
-    }
+  }
   
-    if (user.roles == null) {
-      return result = {
-        isStudent: false,
-        isAdmin: false,
-        isPatreon: false,
-        username: user.user.username,
-        discriminator: user.user.discriminator,
-        id: user.user.id,
-        picture: user.user.avatar
-      };
-    } else {
-      try {
-        user.roles.forEach(role => {
-          if (role === DISCORD_ADMIN_GROUP_ID) {
-            result.isAdmin = true;
-          }
-          if (role === DISCORD_PATREON_SUPPORTER || role === DISCORD_PATREON_SUPPORTERPLUS || 
-              role === DISCORD_PATREON_SUPPORTERPLUSPLUS || role === DISCORD_PATREON_DOMINATOR) {
-            result.isPatreon = true;
-          }
-          if (role === DISCORD_STUDENT_ADMIN_GROUP_ID) {
-            result.isStudent = true;
-          }
-          });
-          return result = {
-            isStudent: result.isStudent,
-            isAdmin: result.isAdmin,
-            isPatreon: result.isPatreon,
-            username: user.user.username,
-            discriminator: user.user.discriminator,
-            id: user.user.id,
-            picture: user.user.avatar
-          };
-        } catch (e) {
+  if (user.roles == null) {
+    return result = {
+      isStudent: false,
+      isAdmin: false,
+      isPatreon: false,
+      username: user.user.username,
+      discriminator: user.user.discriminator,
+      id: user.user.id,
+      picture: user.user.avatar
+    };
+  } else {
+    try {
+      user.roles.forEach(role => {
+        if (role === DISCORD_ADMIN_GROUP_ID) {
+          result.isAdmin = true;
+        }
+        if (role === DISCORD_PATREON_SUPPORTER || role === DISCORD_PATREON_SUPPORTERPLUS || 
+            role === DISCORD_PATREON_SUPPORTERPLUSPLUS || role === DISCORD_PATREON_DOMINATOR) {
+          result.isPatreon = true;
+        }
+        if (role === DISCORD_STUDENT_ADMIN_GROUP_ID) {
+          result.isStudent = true;
+        }
+        });
+        return result = {
+          isStudent: result.isStudent,
+          isAdmin: result.isAdmin,
+          isPatreon: result.isPatreon,
+          username: user.user.username,
+          discriminator: user.user.discriminator,
+          id: user.user.id,
+          picture: user.user.avatar
+        };
+      } catch (e) {
           console.log(e);
-          return e;
-      }
+        return e;
     }
+  }
 }
 
 function Event(event, showEvent) {
@@ -299,12 +320,9 @@ this.summary = event.summary;
 this.descrption = event.description;
 this.showEvent = showEvent;
 this.attachments = event.attachments ? event.attachments : false;
-
-
-
 }
 
 client.connect((err) => {
-    if (err) console.log(err) 
-    else app.listen(PORT, () => console.log(`Server is live on port ${PORT}`));
-  });
+  if (err) console.log(err) 
+  else app.listen(PORT, () => console.log(`Server is live on port ${PORT}`));
+});
