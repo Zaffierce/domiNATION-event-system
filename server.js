@@ -40,14 +40,13 @@ app.get('/', catchAsync(async(req, res) => {
       const validateUser = await authenticateUser(req.cookies[TOKEN]);
       if (validateUser.isFound === false) {
           //TODO: Add user_not_found page
-        res.render('./pages/user_not_found', {
+        res.render('./pages/public/user_not_found', {
           user: validateUser
         });
       } else {
         // const eventImages = [];
         const eventData = await fetchCalendar();
         const signedUpEvents = await fetchSignedUpEvents(validateUser.id);
-
         res.render('./pages/public/index', {
           user: validateUser,
           events: eventData.rows,
@@ -76,8 +75,25 @@ app.get('/', catchAsync(async(req, res) => {
     }
 }));
 
+app.get('/my-events', catchAsync(async(req, res) => {
+  if (req.cookies[TOKEN] == null) {
+    res.redirect('/login');
+  } else {
+    const validateUser = await authenticateUser(req.cookies[TOKEN]);
+    if (validateUser.isFound === false) {
+      res.render('./pages/public/user_not_found', {
+        user: validateUser
+      });
+    } else {
+      //TODO: Query user's specific events and show on a new page.
+      res.render('./pages/public/my-events', {
+        user: validateUser
+      });
+    }
+  }
+}));
+
 app.post('/signup', (req, res) => {
-  //TODO: Grab user's DISCORD ID
   let sqlArr = [res.req.body.eventID, res.req.body.userID, res.req.body.user, false];
   let sql = 'INSERT INTO signed_up_events(event_id, discord_id, character_name, attended) VALUES ($1, $2, $3, $4);'
   try {
@@ -103,9 +119,31 @@ app.post('/unsignup', (req, res) => {
   }
 });
 
-app.get('/fetchevents', (req, res) => {
-  //TODO: Send queried events to front-end
-});
+app.get('/admin', catchAsync(async(req, res) => {
+  if (req.cookies[TOKEN] == null) {
+    res.redirect('/login');
+  } else {
+    const validateUser = await authenticateUser(req.cookies[TOKEN]);
+    if (validateUser.isFound === false) {
+      res.render('./pages/public/user_not_found', {
+        user: validateUser
+      });
+    } else {
+      if (validateUser.isAdmin === true || validateUser.isStudent === true) {
+        const eventData = await fetchAllEvents();
+        res.render('./pages/admin/allevents', {
+          user: validateUser,
+          events : eventData.rows
+        });
+      } else {
+        res.redirect('/');
+      }
+    }
+  }
+}));
+
+//TODO: /login /logout
+
 
 async function fetchCalendar() {
     
@@ -229,11 +267,15 @@ async function fetchCalendar() {
   return await fetchEvents();
 }
 
+async function fetchAllEvents() {
+  return client.query(`SELECT * FROM signed_up_events`);
+}
+
 async function fetchSignedUpEvents(userID) {
   return client.query(`SELECT * FROM signed_up_events where discord_id = '${userID}';`);
 }
 
-app.get('*', (req, res) => {res.status(404).render('pages/error')});
+app.get('*', (req, res) => {res.status(404).render('pages/public/error')});
 
 async function authenticateUser(token) {
   let result = {
