@@ -35,7 +35,7 @@ $(() => {
       $('.signup-submit-btn').attr("hidden", "hidden");
       modal.find('.modal-title').text("Successfully Signed Up!")
       $.ajax({
-        url: `http://localhost:3002/signup`,
+        url: '/signup',
         method: 'POST',
         data: { 
           user : userName,
@@ -65,7 +65,7 @@ $(() => {
     modal.find('#cancel').attr("hidden", "hidden");
     modal.find('#cancel-confirmed').removeAttr("hidden");
     $.ajax({
-      url: `http://localhost:3002/unsignup`,
+      url: '/unsignup',
       method: 'POST',
       data: { 
         user : userName,
